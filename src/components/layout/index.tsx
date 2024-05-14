@@ -11,6 +11,7 @@ export enum AppPath {
   brandProfile = "/brandProfile",
   userProfile = "/profile",
   crud = "/",
+  users = '/users'
 }
 
 export type AppLayoutContextType = {

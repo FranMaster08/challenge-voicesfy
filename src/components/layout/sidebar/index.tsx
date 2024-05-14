@@ -36,6 +36,11 @@ export function AppSidebar({ collapsed, setCollapsed }: AppSidebarProps) {
       label: "Brand",
       icon: <UserOutlined />,
     },
+    {
+      key: AppPath.users,
+      label: "Users",
+      icon: <UserOutlined />,
+    },
   ];
 
   const allMenuItems = [
