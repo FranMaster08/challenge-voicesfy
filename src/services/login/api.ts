@@ -1,6 +1,9 @@
 import { LoginService, LoginRequestData, LoginResponseData } from "./interface";
 
 export class LoginApiService extends LoginService {
+  private isRefreshing = false;
+  private refreshSubscribers: ((token: string) => void)[] = [];
+
   public async login(payload: LoginRequestData): Promise<LoginResponseData> {
     const response: LoginResponseData = await this.fetchPost(
       "/login/",
@@ -32,12 +35,30 @@ export class LoginApiService extends LoginService {
       const parsedToken = this.parseJwt(token?.access);
 
       if (new Date().getTime() / 1000 > parsedToken.exp) {
-        const response: LoginResponseData = await this.fetchPost(
-          "/refresh/",
-          { method: "POST" },
-          { refresh: token.refresh }
-        );
-        this.storeInLocalStorage(response);
+        if (!this.isRefreshing) {
+          this.isRefreshing = true;
+          try {
+            const response: LoginResponseData = await this.fetchPost(
+              "/refresh/",
+              { method: "POST" },
+              { refresh: token.refresh }
+            );
+            this.storeInLocalStorage(response);
+            this.isRefreshing = false;
+            this.onRefreshed(response.access);
+          } catch (e) {
+            console.log(e);
+            this.logout();
+          } finally {
+            this.isRefreshing = false;
+          }
+        } else {
+          return new Promise((resolve) => {
+            this.addRefreshSubscriber((newToken: string) => {
+              resolve(this.retrieveFromLocalStorage());
+            });
+          });
+        }
       }
       return this.retrieveFromLocalStorage();
     } catch (e) {
@@ -45,6 +66,15 @@ export class LoginApiService extends LoginService {
       this.logout();
     }
     return null;
+  }
+
+  private onRefreshed(token: string) {
+    this.refreshSubscribers.forEach(callback => callback(token));
+    this.refreshSubscribers = [];
+  }
+
+  private addRefreshSubscriber(callback: (token: string) => void) {
+    this.refreshSubscribers.push(callback);
   }
 
   private loginDataKey = "loginData";
